@@ -1,0 +1,92 @@
+import { useRef, useState, type PointerEvent } from "react";
+import { ZoomIn } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+type LensPosition = {
+  left: number;
+  top: number;
+  backgroundPosition: string;
+  backgroundSize: string;
+};
+
+const lensSize = 208;
+const zoomFactor = 3;
+
+export function MagnifiableEvidenceImage({ src, alt }: { src: string; alt: string }) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [enabled, setEnabled] = useState(false);
+  const [lens, setLens] = useState<LensPosition | null>(null);
+
+  function moveLens(event: PointerEvent<HTMLDivElement>) {
+    if (!enabled || event.pointerType === "touch") return;
+    const stage = stageRef.current?.getBoundingClientRect();
+    const image = imageRef.current?.getBoundingClientRect();
+    if (!stage || !image || image.width === 0 || image.height === 0) return;
+
+    const imageElement = imageRef.current;
+    if (!imageElement?.naturalWidth || !imageElement.naturalHeight) return;
+    const scale = Math.min(image.width / imageElement.naturalWidth, image.height / imageElement.naturalHeight);
+    const visibleWidth = imageElement.naturalWidth * scale;
+    const visibleHeight = imageElement.naturalHeight * scale;
+    const visibleLeft = image.left + (image.width - visibleWidth) / 2;
+    const visibleTop = image.top + (image.height - visibleHeight) / 2;
+    const imageX = event.clientX - visibleLeft;
+    const imageY = event.clientY - visibleTop;
+    if (imageX < 0 || imageY < 0 || imageX > visibleWidth || imageY > visibleHeight) {
+      setLens(null);
+      return;
+    }
+
+    const radius = lensSize / 2;
+    setLens({
+      left: event.clientX - stage.left - radius,
+      top: event.clientY - stage.top - radius,
+      backgroundPosition: `${radius - imageX * zoomFactor}px ${radius - imageY * zoomFactor}px`,
+      backgroundSize: `${visibleWidth * zoomFactor}px ${visibleHeight * zoomFactor}px`,
+    });
+  }
+
+  function toggleMagnifier() {
+    setEnabled((current) => !current);
+    setLens(null);
+  }
+
+  return (
+    <div
+      ref={stageRef}
+      onPointerMove={moveLens}
+      onPointerLeave={() => setLens(null)}
+      className={`relative flex h-full w-full items-center justify-center overflow-hidden ${enabled ? "cursor-crosshair" : ""}`}
+    >
+      <img ref={imageRef} src={src} alt={alt} className="h-full w-full object-contain" />
+      <Button
+        type="button"
+        size="icon"
+        variant={enabled ? "default" : "secondary"}
+        aria-label={enabled ? "Turn off photo magnifier" : "Turn on photo magnifier"}
+        aria-pressed={enabled}
+        title={enabled ? "Turn off photo magnifier" : "Turn on photo magnifier"}
+        onClick={toggleMagnifier}
+        className="absolute right-4 top-4 z-20 shadow-md"
+      >
+        <ZoomIn />
+      </Button>
+      {enabled && lens && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-10 rounded-full border-2 border-white bg-no-repeat shadow-[0_0_0_1px_rgba(0,0,0,0.7),0_8px_28px_rgba(0,0,0,0.55)]"
+          style={{
+            left: lens.left,
+            top: lens.top,
+            width: lensSize,
+            height: lensSize,
+            backgroundImage: `url("${src}")`,
+            backgroundSize: lens.backgroundSize,
+            backgroundPosition: lens.backgroundPosition,
+          }}
+        />
+      )}
+    </div>
+  );
+}

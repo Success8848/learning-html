@@ -1,0 +1,10 @@
+import type { DemoVideo } from "@/types";
+
+export const demoVideos: DemoVideo[] = [
+  { id: "RED_01", name: "Koteshwor Signal Breach", violation: "Signal Jumping", triggerTimestamp: "00:12", cameraId: "CAM-001", evidenceStatus: "ready", status: "available", severity: "high", vehicleId: "VEH-8841", licensePlate: "BA 12 PA 3456", location: "Koteshwor, Kathmandu", evidenceId: "EVD-000124" },
+  { id: "SPEED_01", name: "Kalanki Speed Threshold", violation: "Overspeeding", triggerTimestamp: "00:14", cameraId: "CAM-001", evidenceStatus: "ready", status: "available", severity: "critical", vehicleId: "VEH-7310", licensePlate: "BA 3 PA 9012", location: "Kalanki, Kathmandu", evidenceId: "EVD-000123" },
+  { id: "HELMET_01", name: "Helmet Compliance Check", violation: "Helmetless Riding", triggerTimestamp: "00:09", cameraId: "CAM-001", evidenceStatus: "ready", status: "available", severity: "medium", vehicleId: "VEH-4502", licensePlate: "BA 96 PA 2201", location: "Maharajgunj, Kathmandu", evidenceId: "EVD-000122" },
+  { id: "WRONG_01", name: "Wrong Lane Entry", violation: "Wrong Lane", triggerTimestamp: "00:17", cameraId: "CAM-001", evidenceStatus: "pending", status: "available", severity: "high", vehicleId: "VEH-1098", licensePlate: "BA 2 JA 7714", location: "Maitighar, Kathmandu", evidenceId: "EVD-000121" },
+  { id: "TRIPLE_01", name: "Three Rider Detection", violation: "Triple Riding", triggerTimestamp: "00:11", cameraId: "CAM-001", evidenceStatus: "ready", status: "available", severity: "medium", vehicleId: "VEH-3352", licensePlate: "BA 88 PA 5610", location: "Satdobato, Lalitpur", evidenceId: "EVD-000120" },
+  { id: "NO_HELMET_TRIPLE_RIDING", name: "No Helmet & Triple Riding", violation: "No Helmet & Triple Riding", triggerTimestamp: "00:12", cameraId: "CAM-001", evidenceStatus: "ready", status: "available", severity: "high", vehicleId: "Bike", licensePlate: "Jay Shree Ram", location: "Uploaded video", evidenceId: "EVD-UPLOAD-TRIPLE-RIDING" },
+];
