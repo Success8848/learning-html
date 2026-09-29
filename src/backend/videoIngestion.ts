@@ -1,4 +1,4 @@
-import { demoVideos } from "@/mock/demoVideos";
+import { findDemoVideoByName } from "@/mock/demoVideos";
 import type { ProcessedDetection } from "./trafficProcessor";
 import { TrafficProcessor } from "./trafficProcessor";
 import { trafficStore } from "./trafficStore";
@@ -119,23 +119,28 @@ function isBlankEvidencePreview(preview: string | undefined): Promise<boolean> {
 }
 
 export async function ingestVideo(file: File): Promise<{ processed?: ProcessedDetection; duplicate: boolean }> {
-  const videoId = videoIdFromName(file.name);
+  const rule = findDemoVideoByName(file.name);
+  const videoId = rule?.id ?? videoIdFromName(file.name);
   const cloudEnabled = Boolean(getFirebaseClient());
   const fingerprint = cloudEnabled ? await fingerprintVideo(file) : undefined;
   if (fingerprint) {
     const remote = await findFirebaseProcessed(fingerprint);
-    if (remote) {
+    if (remote && !rule) {
       await trafficStore.hydrate();
       return { processed: remote, duplicate: true };
     }
   }
-  if (await trafficStore.hasVideo(file.name)) {
+  let existingDemo: ProcessedDetection | undefined;
+  if (rule) {
+    await trafficStore.hydrate();
+    existingDemo = trafficStore.findProcessedByVideo(rule.id, file.name);
+  }
+  if (!rule && await trafficStore.hasVideo(file.name)) {
     await trafficStore.hydrate();
     const existing = trafficStore.findProcessedByVideo(videoId);
     if (existing) {
       let repaired = existing;
       if (await isBlankEvidencePreview(repaired.evidence.previewDataUrl ?? repaired.incident.evidencePreview)) {
-        const rule = demoVideos.find((video) => video.id === videoId);
         const preview = await captureFrame(file, rule?.triggerTimestamp ?? existing.incident.videoTimestamp);
         if (!preview) throw new Error("Unable to capture an evidence frame from this video.");
         repaired = {
@@ -150,7 +155,6 @@ export async function ingestVideo(file: File): Promise<{ processed?: ProcessedDe
       return { processed: repaired, duplicate: true };
     }
   }
-  const rule = demoVideos.find((video) => video.id === videoId);
   const timestamp = rule?.triggerTimestamp ?? "00:12";
   const cameraId = rule?.cameraId ?? "CAM-001";
   const location = rule?.location ?? "Uploaded video";
@@ -169,16 +173,32 @@ export async function ingestVideo(file: File): Promise<{ processed?: ProcessedDe
       vehicleId: rule?.vehicleId ?? "Bike",
       licensePlate: rule?.licensePlate ?? "BA Pradesh 02 048PA 2762",
       location,
+      status: existingDemo?.incident.status,
       evidencePreview: preview,
       sourceVideoName: file.name,
     },
     uploadedAt,
   );
 
+  if (rule) {
+    processed = {
+      incident: {
+        ...processed.incident,
+        id: existingDemo?.incident.id ?? processed.incident.id,
+        evidenceId: rule.evidenceId,
+      },
+      evidence: {
+        ...processed.evidence,
+        id: rule.evidenceId,
+        incidentId: existingDemo?.incident.id ?? processed.incident.id,
+      },
+    };
+  }
+
   if (fingerprint) {
     const suffix = fingerprint.slice(0, 24).toUpperCase();
-    const incidentId = `INC-${suffix}`;
-    const evidenceId = `EVD-${suffix}`;
+    const incidentId = existingDemo?.incident.id ?? `INC-${suffix}`;
+    const evidenceId = rule?.evidenceId ?? `EVD-${suffix}`;
     processed = {
       incident: { ...processed.incident, id: incidentId, evidenceId },
       evidence: { ...processed.evidence, id: evidenceId, incidentId },
@@ -187,8 +207,9 @@ export async function ingestVideo(file: File): Promise<{ processed?: ProcessedDe
   }
 
   await trafficStore.saveVideo(file.name, file, uploadedAt);
-  await trafficStore.add(processed);
-  return { processed, duplicate: false };
+  if (existingDemo) await trafficStore.updateProcessed(processed);
+  else await trafficStore.add(processed);
+  return { processed, duplicate: Boolean(existingDemo) };
 }
 
 function readImage(file: File): Promise<string> {
